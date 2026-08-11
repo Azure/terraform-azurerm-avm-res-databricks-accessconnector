@@ -1,17 +1,7 @@
-data "azapi_client_config" "telemetry" {
-  count = var.enable_telemetry ? 1 : 0
-}
-
 data "modtm_module_source" "telemetry" {
   count = var.enable_telemetry ? 1 : 0
 
   module_path = path.module
-}
-
-locals {
-  # If your module does not support a location, then set this local to "unknown"
-  # If the location is sourced from a collection or other value, then you can update this local to set it to the location
-  main_location = var.location
 }
 
 resource "random_uuid" "telemetry" {
@@ -30,9 +20,8 @@ resource "modtm_telemetry" "telemetry" {
   }, { location = local.main_location })
 }
 
-locals {
-  # tflint-ignore: terraform_unused_declarations
-  avm_azapi_header = join(" ", [for k, v in local.avm_azapi_headers : "${k}=${v}"])
+data "azapi_client_config" "telemetry" {
+  count = var.enable_telemetry ? 1 : 0
 }
 
 locals {
@@ -58,4 +47,13 @@ locals {
     "git::https://github\\.com/[A|a]zure/.+",
     "git::ssh:://git@github\\.com/[A|a]zure/.+",
   ]
+}
+
+locals {
+  main_location = var.location
+}
+
+locals {
+  # tflint-ignore: terraform_unused_declarations
+  avm_azapi_header = join(" ", [for k, v in local.avm_azapi_headers : "${k}=${v}"])
 }
