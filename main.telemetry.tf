@@ -50,7 +50,7 @@ locals {
 }
 
 locals {
-  main_location = var.location
+  main_location = local.resolved_location
 }
 
 locals {
