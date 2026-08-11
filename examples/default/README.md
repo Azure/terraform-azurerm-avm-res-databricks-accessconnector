@@ -28,19 +28,17 @@ provider "azurerm" {
   features {}
 }
 
-module "regions" {
-  source  = "Azure/avm-utl-regions/azurerm"
-  version = "~> 0.1"
+# Microsoft.Databricks/accessConnectors is not available in every Azure region, so a
+# single known-supported region is pinned rather than randomly selected (mirrors the
+# approach used by Azure/terraform-azure-avm-res-fabric-capacity for the same reason).
+# https://learn.microsoft.com/azure/templates/microsoft.databricks/accessconnectors
+locals {
+  location = "westeurope"
 }
 
 module "naming" {
   source  = "Azure/naming/azurerm"
   version = "~> 0.3"
-}
-
-resource "random_integer" "region_index" {
-  max = length(module.regions.regions) - 1
-  min = 0
 }
 
 resource "random_string" "suffix" {
@@ -52,7 +50,7 @@ resource "random_string" "suffix" {
 }
 
 resource "azurerm_resource_group" "this" {
-  location = module.regions.regions[random_integer.region_index.result].name
+  location = local.location
   name     = module.naming.resource_group.name_unique
 }
 
@@ -87,7 +85,6 @@ The following requirements are needed by this module:
 The following resources are used by this module:
 
 - [azurerm_resource_group.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) (resource)
-- [random_integer.region_index](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/integer) (resource)
 - [random_string.suffix](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/string) (resource)
 
 <!-- markdownlint-disable MD013 -->
@@ -124,12 +121,6 @@ The following Modules are called:
 Source: Azure/naming/azurerm
 
 Version: ~> 0.3
-
-### <a name="module_regions"></a> [regions](#module\_regions)
-
-Source: Azure/avm-utl-regions/azurerm
-
-Version: ~> 0.1
 
 ### <a name="module_test"></a> [test](#module\_test)
 
