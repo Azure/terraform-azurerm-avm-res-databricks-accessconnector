@@ -1,9 +1,5 @@
 data "azurerm_client_config" "current" {}
 
-data "azurerm_resource_group" "this" {
-  name = var.resource_group_name
-}
-
 module "interfaces" {
   source  = "Azure/avm-utl-interfaces/azure"
   version = "0.6.0"
@@ -15,7 +11,7 @@ module "interfaces" {
 }
 
 resource "azurerm_databricks_access_connector" "this" {
-  location            = local.resolved_location
+  location            = var.location
   name                = var.name
   resource_group_name = var.resource_group_name
   tags                = var.tags

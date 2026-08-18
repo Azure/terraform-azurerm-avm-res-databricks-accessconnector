@@ -28,8 +28,8 @@ DESCRIPTION
 
 variable "location" {
   type        = string
-  default     = null
-  description = "Optional Azure region for the access connector. If null, the module uses the resource group's location."
+  nullable    = false
+  description = "Azure region where the access connector should be deployed."
 }
 
 variable "lock" {

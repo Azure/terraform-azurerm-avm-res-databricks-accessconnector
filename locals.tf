@@ -1,6 +1,4 @@
 locals {
-  resolved_location = coalesce(var.location, data.azurerm_resource_group.this.location)
-
   managed_identity_type_list = compact([
     var.managed_identities.system_assigned ? "SystemAssigned" : null,
     length(var.managed_identities.user_assigned_resource_ids) > 0 ? "UserAssigned" : null,

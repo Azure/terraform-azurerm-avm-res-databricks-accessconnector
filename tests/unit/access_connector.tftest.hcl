@@ -8,14 +8,6 @@ mock_provider "azurerm" {
     }
   }
 
-  mock_data "azurerm_resource_group" {
-    defaults = {
-      id       = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-test"
-      location = "westeurope"
-      name     = "rg-test"
-    }
-  }
-
   # A well-formed resource ID is required here: azurerm_role_assignment.this.scope and
   # azurerm_management_lock.this.scope both reference this resource's id, and the
   # azurerm provider validates scope as a real Azure resource ID even under `command
@@ -73,6 +65,7 @@ run "defaults_plan" {
 
   variables {
     enable_telemetry    = false
+    location            = "westeurope"
     name                = "dacdefault001"
     resource_group_name = "rg-test"
   }
@@ -84,7 +77,7 @@ run "defaults_plan" {
 
   assert {
     condition     = output.location == "westeurope"
-    error_message = "The module should default location to the resource group's location when location is null."
+    error_message = "The explicit location should flow through the plan."
   }
 }
 
@@ -130,6 +123,7 @@ run "invalid_name_fails" {
 
   variables {
     enable_telemetry    = false
+    location            = "westeurope"
     name                = "ab"
     resource_group_name = "rg-test"
   }
@@ -144,6 +138,7 @@ run "invalid_lock_kind_fails" {
 
   variables {
     enable_telemetry    = false
+    location            = "westeurope"
     name                = "dacvalid001"
     resource_group_name = "rg-test"
     lock = {
