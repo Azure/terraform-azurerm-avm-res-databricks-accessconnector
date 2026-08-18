@@ -46,7 +46,7 @@ resource "azurerm_management_lock" "this" {
   lock_level = module.interfaces.lock_azapi.body.properties.level
   name       = coalesce(module.interfaces.lock_azapi.name, "lock-${var.name}")
   scope      = azurerm_databricks_access_connector.this.id
-  notes      = var.lock.kind == "CanNotDelete" ? "Cannot delete the resource or its child resources." : "Cannot delete or modify the resource or its child resources."
+  notes      = coalesce(var.lock.notes, var.lock.kind == "CanNotDelete" ? "Cannot delete the resource or its child resources." : "Cannot delete or modify the resource or its child resources.")
 
   depends_on = [azurerm_role_assignment.this]
 }
