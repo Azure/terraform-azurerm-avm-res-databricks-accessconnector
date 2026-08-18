@@ -114,13 +114,15 @@ Description: Controls the resource lock configuration for the access connector. 
 
 - `kind` - (Required) The type of lock. Possible values are `CanNotDelete` and `ReadOnly`.
 - `name` - (Optional) The name of the lock. If not specified, a name will be generated based on the connector name. Changing this forces the creation of a new resource.
+- `notes` - (Optional) Notes about the lock. Maximum of 512 characters.
 
 Type:
 
 ```hcl
 object({
-    kind = string
-    name = optional(string, null)
+    kind  = string
+    name  = optional(string, null)
+    notes = optional(string, null)
   })
 ```
 
@@ -130,14 +132,14 @@ Default: `null`
 
 Description: Controls the managed identity configuration for the access connector. The access connector itself has no scenario-specific properties; the managed identity is the point of the resource.
 
-- `system_assigned` - (Optional) Specifies if the system-assigned managed identity should be enabled. Defaults to `true` to match the AVM Bicep module.
+- `system_assigned` - (Optional) Specifies if the system-assigned managed identity should be enabled. Defaults to `false` per the AVM interface specification.
 - `user_assigned_resource_ids` - (Optional) Set of user-assigned managed identity resource IDs to attach to the connector.
 
 Type:
 
 ```hcl
 object({
-    system_assigned            = optional(bool, true)
+    system_assigned            = optional(bool, false)
     user_assigned_resource_ids = optional(set(string), [])
   })
 ```

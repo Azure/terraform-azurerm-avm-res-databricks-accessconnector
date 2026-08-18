@@ -1,3 +1,9 @@
+variable "location" {
+  type        = string
+  description = "Azure region where the access connector should be deployed."
+  nullable    = false
+}
+
 variable "name" {
   type        = string
   description = "Name of the Azure Databricks access connector. The value must be between 3 and 64 characters."
@@ -26,12 +32,6 @@ DESCRIPTION
   nullable    = false
 }
 
-variable "location" {
-  type        = string
-  nullable    = false
-  description = "Azure region where the access connector should be deployed."
-}
-
 variable "lock" {
   type = object({
     kind  = string
@@ -55,14 +55,14 @@ DESCRIPTION
 
 variable "managed_identities" {
   type = object({
-    system_assigned            = optional(bool, true)
+    system_assigned            = optional(bool, false)
     user_assigned_resource_ids = optional(set(string), [])
   })
   default     = {}
   description = <<DESCRIPTION
 Controls the managed identity configuration for the access connector. The access connector itself has no scenario-specific properties; the managed identity is the point of the resource.
 
-- `system_assigned` - (Optional) Specifies if the system-assigned managed identity should be enabled. Defaults to `true` to match the AVM Bicep module.
+- `system_assigned` - (Optional) Specifies if the system-assigned managed identity should be enabled. Defaults to `false` per the AVM interface specification.
 - `user_assigned_resource_ids` - (Optional) Set of user-assigned managed identity resource IDs to attach to the connector.
 DESCRIPTION
   nullable    = false
