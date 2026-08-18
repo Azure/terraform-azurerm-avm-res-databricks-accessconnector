@@ -51,8 +51,20 @@ module "test" {
   source = "../../"
 
   enable_telemetry    = var.enable_telemetry
+  location            = azurerm_resource_group.this.location
   name                = "dac${random_string.suffix.result}"
   resource_group_name = azurerm_resource_group.this.name
+
+  lock = {
+    kind = "CanNotDelete"
+    name = "myCustomLockName"
+  }
+
+  tags = {
+    Environment    = "Non-Prod"
+    Role           = "DeploymentValidation"
+    "hidden-title" = "Azure Databricks Access Connector"
+  }
 }
 
 output "access_connector_id" {
