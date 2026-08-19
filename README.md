@@ -108,15 +108,19 @@ Description: Body-relative paths to ignore for each AzAPI resource this module m
 
 - `databricks_access_connectors` - (Optional) Paths ignored on the access connector resource body.
 - `authorization_locks` - (Optional) Paths ignored on the management lock resource body.
-- `authorization_role_assignments` - (Optional) Paths ignored on role assignment resource bodies.
+- `authorization_role_assignments` - (Optional) Paths ignored on role assignment resource bodies. Defaults to `["properties.principalType"]` because Azure does not reliably return this value on refresh.
 
 Type:
 
 ```hcl
 object({
-    databricks_access_connectors   = optional(list(string), [])
-    authorization_locks            = optional(list(string), [])
-    authorization_role_assignments = optional(list(string), [])
+    databricks_access_connectors = optional(list(string), [])
+    authorization_locks          = optional(list(string), [])
+    # Azure's roleAssignments GET API does not reliably return principalType on
+    # refresh, even when it was supplied at create time (and it cannot be changed
+    # after creation regardless, since it forces replacement). Ignoring it by
+    # default prevents every subsequent plan from showing a spurious diff.
+    authorization_role_assignments = optional(list(string), ["properties.principalType"])
   })
 ```
 
