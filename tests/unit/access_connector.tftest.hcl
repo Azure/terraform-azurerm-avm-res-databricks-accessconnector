@@ -102,7 +102,7 @@ run "role_assignments_plan" {
   }
 
   assert {
-    condition     = azapi_resource.this.body.identity.type == "SystemAssigned,UserAssigned"
+    condition     = azapi_resource.this.body.identity.type == "SystemAssigned, UserAssigned"
     error_message = "Both identity types must be requested when both are enabled."
   }
 
