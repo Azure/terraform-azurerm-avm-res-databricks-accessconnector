@@ -6,12 +6,8 @@ terraform {
       source  = "Azure/azapi"
       version = "~> 2.12"
     }
-    azurerm = {
-      source  = "hashicorp/azurerm"
-      version = "~> 4.21"
-    }
     modtm = {
-      source  = "azure/modtm"
+      source  = "Azure/modtm"
       version = "~> 0.3"
     }
     random = {

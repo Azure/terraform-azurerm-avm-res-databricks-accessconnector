@@ -122,10 +122,10 @@ resource "azurerm_storage_account" "this" {
 module "test" {
   source = "../../"
 
-  enable_telemetry    = var.enable_telemetry
-  location            = azurerm_resource_group.this.location
-  name                = "dac${random_string.connector_suffix.result}"
-  resource_group_name = azurerm_resource_group.this.name
+  enable_telemetry = var.enable_telemetry
+  location         = azurerm_resource_group.this.location
+  name             = "dac${random_string.connector_suffix.result}"
+  parent_id        = azurerm_resource_group.this.id
 
   lock = {
     kind = "CanNotDelete"

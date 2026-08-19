@@ -1,4 +1,4 @@
-data "azurerm_client_config" "current" {}
+data "azapi_client_config" "current" {}
 
 module "interfaces" {
   source  = "Azure/avm-utl-interfaces/azure"
@@ -6,47 +6,103 @@ module "interfaces" {
 
   enable_telemetry                 = var.enable_telemetry
   lock                             = var.lock
-  role_assignment_definition_scope = "/subscriptions/${data.azurerm_client_config.current.subscription_id}"
+  role_assignment_definition_scope = "/subscriptions/${data.azapi_client_config.current.subscription_id}"
   role_assignments                 = var.role_assignments
 }
 
-resource "azurerm_databricks_access_connector" "this" {
-  location            = var.location
-  name                = var.name
-  resource_group_name = var.resource_group_name
-  tags                = var.tags
+resource "azapi_resource" "this" {
+  location  = var.location
+  name      = var.name
+  parent_id = var.parent_id
+  type      = var.resource_types.databricks_access_connectors
+  body = {
+    identity = local.managed_identity == null ? null : {
+      type                   = local.managed_identity.type
+      userAssignedIdentities = local.managed_identity.identity_ids == null ? null : { for id in local.managed_identity.identity_ids : id => {} }
+    }
+    properties = {}
+  }
+  create_headers        = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  delete_headers        = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  ignore_body_changes   = length(var.ignore_body_changes.databricks_access_connectors) > 0 ? var.ignore_body_changes.databricks_access_connectors : null
+  read_headers          = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  replace_triggers_refs = []
+  response_export_values = [
+    "identity",
+  ]
+  retry          = var.retry
+  tags           = var.tags
+  update_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
 
-  dynamic "identity" {
-    for_each = local.managed_identity == null ? [] : [local.managed_identity]
+  dynamic "timeouts" {
+    for_each = var.timeouts == null ? [] : [var.timeouts]
     content {
-      type         = identity.value.type
-      identity_ids = identity.value.identity_ids
+      create = timeouts.value.create
+      delete = timeouts.value.delete
+      read   = timeouts.value.read
+      update = timeouts.value.update
     }
   }
 }
 
-resource "azurerm_role_assignment" "this" {
+resource "azapi_resource" "role_assignments" {
   for_each = module.interfaces.role_assignments_azapi
 
-  principal_id                           = each.value.body.properties.principalId
-  scope                                  = azurerm_databricks_access_connector.this.id
-  condition                              = each.value.body.properties.condition
-  condition_version                      = each.value.body.properties.condition != null ? coalesce(each.value.body.properties.conditionVersion, "2.0") : null
-  delegated_managed_identity_resource_id = each.value.body.properties.delegatedManagedIdentityResourceId
-  description                            = each.value.body.properties.description
-  name                                   = each.value.name
-  principal_type                         = each.value.body.properties.principalType
-  role_definition_id                     = each.value.body.properties.roleDefinitionId
-  skip_service_principal_aad_check       = var.role_assignments[each.key].skip_service_principal_aad_check
+  name                   = each.value.name
+  parent_id              = azapi_resource.this.id
+  type                   = each.value.type
+  body                   = each.value.body
+  create_headers         = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  delete_headers         = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  ignore_body_changes    = length(var.ignore_body_changes.authorization_role_assignments) > 0 ? var.ignore_body_changes.authorization_role_assignments : null
+  read_headers           = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  replace_triggers_refs  = []
+  response_export_values = []
+  retry                  = var.retry
+  update_headers         = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+
+  dynamic "timeouts" {
+    for_each = var.timeouts == null ? [] : [var.timeouts]
+    content {
+      create = timeouts.value.create
+      delete = timeouts.value.delete
+      read   = timeouts.value.read
+      update = timeouts.value.update
+    }
+  }
 }
 
-resource "azurerm_management_lock" "this" {
-  count = var.lock == null ? 0 : 1
+resource "azapi_resource" "lock" {
+  count = var.lock != null ? 1 : 0
 
-  lock_level = module.interfaces.lock_azapi.body.properties.level
-  name       = coalesce(module.interfaces.lock_azapi.name, "lock-${var.name}")
-  scope      = azurerm_databricks_access_connector.this.id
-  notes      = coalesce(var.lock.notes, var.lock.kind == "CanNotDelete" ? "Cannot delete the resource or its child resources." : "Cannot delete or modify the resource or its child resources.")
+  name                   = coalesce(module.interfaces.lock_azapi.name, "lock-${var.name}")
+  parent_id              = azapi_resource.this.id
+  type                   = module.interfaces.lock_azapi.type
+  body                   = module.interfaces.lock_azapi.body
+  create_headers         = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  delete_headers         = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  ignore_body_changes    = length(var.ignore_body_changes.authorization_locks) > 0 ? var.ignore_body_changes.authorization_locks : null
+  read_headers           = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  replace_triggers_refs  = []
+  response_export_values = []
+  retry                  = var.retry
+  update_headers         = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
 
-  depends_on = [azurerm_role_assignment.this]
+  dynamic "timeouts" {
+    for_each = var.timeouts == null ? [] : [var.timeouts]
+    content {
+      create = timeouts.value.create
+      delete = timeouts.value.delete
+      read   = timeouts.value.read
+      update = timeouts.value.update
+    }
+  }
+
+  # A `CanNotDelete` lock on the connector also blocks deletes of anything scoped
+  # to it, including its role assignments. Terraform destroys in reverse creation
+  # order, so creating the lock *after* the role assignments makes it the first
+  # thing destroyed. Without this, the lock, the role assignments, and the
+  # connector delete concurrently and race, and every loser of that race comes
+  # back as `409 ScopeLocked`.
+  depends_on = [azapi_resource.role_assignments]
 }

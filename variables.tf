@@ -15,10 +15,15 @@ variable "name" {
   }
 }
 
-variable "resource_group_name" {
+variable "parent_id" {
   type        = string
-  description = "Name of the resource group in which to create the Databricks access connector."
+  description = "Resource ID of the resource group in which to create the Databricks access connector."
   nullable    = false
+
+  validation {
+    condition     = can(provider::azapi::parse_resource_id("Microsoft.Resources/resourceGroups", var.parent_id))
+    error_message = "`parent_id` must be a valid resource-group resource ID."
+  }
 }
 
 variable "enable_telemetry" {
@@ -28,6 +33,23 @@ variable "enable_telemetry" {
 This variable controls whether or not telemetry is enabled for the module.
 For more information see <https://aka.ms/avm/telemetryinfo>.
 If it is set to false, then no telemetry will be collected.
+DESCRIPTION
+  nullable    = false
+}
+
+variable "ignore_body_changes" {
+  type = object({
+    databricks_access_connectors   = optional(list(string), [])
+    authorization_locks            = optional(list(string), [])
+    authorization_role_assignments = optional(list(string), [])
+  })
+  default     = {}
+  description = <<DESCRIPTION
+Body-relative paths to ignore for each AzAPI resource this module manages. Paths use dot notation (for example `"tags"`). Changes take effect only after apply; ignored configuration is not sent to Azure until the path is removed.
+
+- `databricks_access_connectors` - (Optional) Paths ignored on the access connector resource body.
+- `authorization_locks` - (Optional) Paths ignored on the management lock resource body.
+- `authorization_role_assignments` - (Optional) Paths ignored on role assignment resource bodies.
 DESCRIPTION
   nullable    = false
 }
@@ -66,6 +88,40 @@ Controls the managed identity configuration for the access connector. The access
 - `user_assigned_resource_ids` - (Optional) Set of user-assigned managed identity resource IDs to attach to the connector.
 DESCRIPTION
   nullable    = false
+}
+
+variable "resource_types" {
+  type = object({
+    databricks_access_connectors   = optional(string, "Microsoft.Databricks/accessConnectors@2026-01-01")
+    authorization_locks            = optional(string, "Microsoft.Authorization/locks@2020-05-01")
+    authorization_role_assignments = optional(string, "Microsoft.Authorization/roleAssignments@2022-04-01")
+  })
+  default     = {}
+  description = <<DESCRIPTION
+AzAPI resource types and API versions used by this module. Override only when validating a supported API migration.
+
+- `databricks_access_connectors` - (Optional) The resource type and API version for the access connector. Defaults to `"Microsoft.Databricks/accessConnectors@2026-01-01"`.
+- `authorization_locks` - (Optional) The resource type and API version used for the optional management lock. Defaults to `"Microsoft.Authorization/locks@2020-05-01"`.
+- `authorization_role_assignments` - (Optional) The resource type and API version used for role assignments on the access connector. Defaults to `"Microsoft.Authorization/roleAssignments@2022-04-01"`.
+DESCRIPTION
+  nullable    = false
+}
+
+variable "retry" {
+  type = object({
+    error_message_regex  = optional(list(string))
+    interval_seconds     = optional(number)
+    max_interval_seconds = optional(number)
+  })
+  default     = null
+  description = <<DESCRIPTION
+Retry configuration applied to every AzAPI resource managed by this module. Defaults to `null` (no custom retry).
+
+- `error_message_regex`  - (Optional) A list of regex patterns matching error messages that trigger a retry.
+- `interval_seconds`     - (Optional) Initial interval between retries, in seconds.
+- `max_interval_seconds` - (Optional) Maximum interval between retries, in seconds.
+See <https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource#retry>.
+DESCRIPTION
 }
 
 variable "role_assignments" {
@@ -111,4 +167,22 @@ variable "tags" {
   type        = map(string)
   default     = null
   description = "Optional map of tags to assign to the access connector."
+}
+
+variable "timeouts" {
+  type = object({
+    create = optional(string)
+    delete = optional(string)
+    read   = optional(string)
+    update = optional(string)
+  })
+  default     = null
+  description = <<DESCRIPTION
+Timeout overrides for AzAPI operations on the access connector, lock, and role assignments. Defaults to `null` (provider defaults). Each value is a Go duration string, for example `"30m"`.
+
+- `create` - (Optional) Timeout for create operations.
+- `read`   - (Optional) Timeout for read operations.
+- `update` - (Optional) Timeout for update operations.
+- `delete` - (Optional) Timeout for delete operations.
+DESCRIPTION
 }

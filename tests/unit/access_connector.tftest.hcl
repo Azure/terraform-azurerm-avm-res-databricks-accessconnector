@@ -1,25 +1,3 @@
-mock_provider "azurerm" {
-  mock_data "azurerm_client_config" {
-    defaults = {
-      client_id       = "00000000-0000-0000-0000-000000000000"
-      object_id       = "00000000-0000-0000-0000-000000000001"
-      subscription_id = "00000000-0000-0000-0000-000000000000"
-      tenant_id       = "00000000-0000-0000-0000-000000000000"
-    }
-  }
-
-  # A well-formed resource ID is required here: azurerm_role_assignment.this.scope and
-  # azurerm_management_lock.this.scope both reference this resource's id, and the
-  # azurerm provider validates scope as a real Azure resource ID even under `command
-  # = apply` with mocked providers. Without this default, Terraform generates a
-  # placeholder id (e.g. "zh7tbu01") that fails that validation.
-  mock_resource "azurerm_databricks_access_connector" {
-    defaults = {
-      id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-test/providers/Microsoft.Databricks/accessConnectors/dac-test"
-    }
-  }
-}
-
 mock_provider "azapi" {
   mock_data "azapi_resource_list" {
     defaults = {
@@ -49,9 +27,9 @@ mock_provider "azapi" {
 mock_provider "modtm" {}
 
 # avm-utl-interfaces generates a role-assignment name via random_uuid when the caller
-# doesn't supply one. azurerm_role_assignment.name must be a real UUID, so an explicit
-# default is required here (the auto-generated mock value is a placeholder string,
-# not UUID-formatted).
+# doesn't supply one. The role-assignment resource name must be a real UUID, so an
+# explicit default is required here (the auto-generated mock value is a placeholder
+# string, not UUID-formatted).
 mock_provider "random" {
   mock_resource "random_uuid" {
     defaults = {
@@ -60,35 +38,51 @@ mock_provider "random" {
   }
 }
 
+variables {
+  location  = "westeurope"
+  name      = "dacdefault001"
+  parent_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-test"
+}
+
 run "defaults_plan" {
-  command = apply
+  command = plan
 
   variables {
-    enable_telemetry    = false
-    location            = "westeurope"
-    name                = "dacdefault001"
-    resource_group_name = "rg-test"
+    enable_telemetry = false
   }
 
   assert {
-    condition     = output.name == "dacdefault001"
-    error_message = "The name output should match the planned connector name."
+    condition     = azapi_resource.this.name == "dacdefault001"
+    error_message = "The connector must be created with the planned name."
   }
 
   assert {
-    condition     = output.location == "westeurope"
-    error_message = "The explicit location should flow through the plan."
+    condition     = azapi_resource.this.location == "westeurope"
+    error_message = "The explicit location must flow through to the connector."
+  }
+
+  assert {
+    condition     = azapi_resource.this.type == "Microsoft.Databricks/accessConnectors@2026-01-01"
+    error_message = "The connector must use the approved stable ARM API by default."
+  }
+
+  assert {
+    condition     = azapi_resource.this.body.identity == null
+    error_message = "No managed identity should be requested by default."
+  }
+
+  assert {
+    condition     = length(azapi_resource.lock) == 0
+    error_message = "No lock should be created by default."
   }
 }
 
 run "role_assignments_plan" {
-  command = apply
+  command = plan
 
   variables {
-    enable_telemetry    = false
-    location            = "northeurope"
-    name                = "dacroles001"
-    resource_group_name = "rg-test"
+    enable_telemetry = false
+    name             = "dacroles001"
     managed_identities = {
       system_assigned = true
       user_assigned_resource_ids = [
@@ -108,43 +102,54 @@ run "role_assignments_plan" {
   }
 
   assert {
-    condition     = output.location == "northeurope"
-    error_message = "The explicit location should flow through the plan."
+    condition     = azapi_resource.this.body.identity.type == "SystemAssigned,UserAssigned"
+    error_message = "Both identity types must be requested when both are enabled."
+  }
+
+  assert {
+    condition     = contains(keys(azapi_resource.this.body.identity.userAssignedIdentities), "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-test/providers/Microsoft.ManagedIdentity/userAssignedIdentities/ua-001")
+    error_message = "The requested user-assigned identity must be attached."
+  }
+
+  assert {
+    condition     = azapi_resource.role_assignments["storage_blob_data_contributor"].body.properties.roleDefinitionId == "/subscriptions/00000000-0000-0000-0000-000000000000/providers/Microsoft.Authorization/roleDefinitions/ba92f5b4-2d11-453d-a403-e96b0029c9fe"
+    error_message = "The role assignment must resolve the requested built-in role name to its role definition ID."
+  }
+
+  assert {
+    condition     = length(azapi_resource.lock) == 1
+    error_message = "A requested lock must be created."
   }
 }
 
 run "invalid_name_fails" {
-  # Kept as `plan` (not `apply`): this is a pure input-validation test. Terraform's
-  # test framework marks apply-based runs as failed when the expected failure occurs
-  # during the plan phase (a documented limitation, not specific to this module) --
-  # command = plan is the correct choice here even though other run blocks in this
-  # file use apply per AVM convention.
   command = plan
 
   variables {
-    enable_telemetry    = false
-    location            = "westeurope"
-    name                = "ab"
-    resource_group_name = "rg-test"
+    name = "ab"
   }
 
   expect_failures = [var.name]
 }
 
 run "invalid_lock_kind_fails" {
-  # See the comment on invalid_name_fails above: pure input-validation tests must
-  # stay on `command = plan`.
   command = plan
 
   variables {
-    enable_telemetry    = false
-    location            = "westeurope"
-    name                = "dacvalid001"
-    resource_group_name = "rg-test"
     lock = {
       kind = "Delete"
     }
   }
 
   expect_failures = [var.lock]
+}
+
+run "invalid_parent_id_fails" {
+  command = plan
+
+  variables {
+    parent_id = "not-a-resource-id"
+  }
+
+  expect_failures = [var.parent_id]
 }

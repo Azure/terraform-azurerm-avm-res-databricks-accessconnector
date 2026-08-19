@@ -52,8 +52,6 @@ The following requirements are needed by this module:
 
 - <a name="requirement_azapi"></a> [azapi](#requirement\_azapi) (~> 2.12)
 
-- <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) (~> 4.21)
-
 - <a name="requirement_modtm"></a> [modtm](#requirement\_modtm) (~> 0.3)
 
 - <a name="requirement_random"></a> [random](#requirement\_random) (~> 3.5)
@@ -62,14 +60,14 @@ The following requirements are needed by this module:
 
 The following resources are used by this module:
 
-- [azurerm_databricks_access_connector.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/databricks_access_connector) (resource)
-- [azurerm_management_lock.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/management_lock) (resource)
-- [azurerm_role_assignment.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/role_assignment) (resource)
-- [modtm_telemetry.telemetry](https://registry.terraform.io/providers/azure/modtm/latest/docs/resources/telemetry) (resource)
+- [azapi_resource.lock](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource) (resource)
+- [azapi_resource.role_assignments](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource) (resource)
+- [azapi_resource.this](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource) (resource)
+- [modtm_telemetry.telemetry](https://registry.terraform.io/providers/Azure/modtm/latest/docs/resources/telemetry) (resource)
 - [random_uuid.telemetry](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/uuid) (resource)
+- [azapi_client_config.current](https://registry.terraform.io/providers/Azure/azapi/latest/docs/data-sources/client_config) (data source)
 - [azapi_client_config.telemetry](https://registry.terraform.io/providers/Azure/azapi/latest/docs/data-sources/client_config) (data source)
-- [azurerm_client_config.current](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/data-sources/client_config) (data source)
-- [modtm_module_source.telemetry](https://registry.terraform.io/providers/azure/modtm/latest/docs/data-sources/module_source) (data source)
+- [modtm_module_source.telemetry](https://registry.terraform.io/providers/Azure/modtm/latest/docs/data-sources/module_source) (data source)
 
 <!-- markdownlint-disable MD013 -->
 ## Required Inputs
@@ -88,9 +86,9 @@ Description: Name of the Azure Databricks access connector. The value must be be
 
 Type: `string`
 
-### <a name="input_resource_group_name"></a> [resource\_group\_name](#input\_resource\_group\_name)
+### <a name="input_parent_id"></a> [parent\_id](#input\_parent\_id)
 
-Description: Name of the resource group in which to create the Databricks access connector.
+Description: Resource ID of the resource group in which to create the Databricks access connector.
 
 Type: `string`
 
@@ -107,6 +105,26 @@ If it is set to false, then no telemetry will be collected.
 Type: `bool`
 
 Default: `true`
+
+### <a name="input_ignore_body_changes"></a> [ignore\_body\_changes](#input\_ignore\_body\_changes)
+
+Description: Body-relative paths to ignore for each AzAPI resource this module manages. Paths use dot notation (for example `"tags"`). Changes take effect only after apply; ignored configuration is not sent to Azure until the path is removed.
+
+- `databricks_access_connectors` - (Optional) Paths ignored on the access connector resource body.
+- `authorization_locks` - (Optional) Paths ignored on the management lock resource body.
+- `authorization_role_assignments` - (Optional) Paths ignored on role assignment resource bodies.
+
+Type:
+
+```hcl
+object({
+    databricks_access_connectors   = optional(list(string), [])
+    authorization_locks            = optional(list(string), [])
+    authorization_role_assignments = optional(list(string), [])
+  })
+```
+
+Default: `{}`
 
 ### <a name="input_lock"></a> [lock](#input\_lock)
 
@@ -145,6 +163,47 @@ object({
 ```
 
 Default: `{}`
+
+### <a name="input_resource_types"></a> [resource\_types](#input\_resource\_types)
+
+Description: AzAPI resource types and API versions used by this module. Override only when validating a supported API migration.
+
+- `databricks_access_connectors` - (Optional) The resource type and API version for the access connector. Defaults to `"Microsoft.Databricks/accessConnectors@2026-01-01"`.
+- `authorization_locks` - (Optional) The resource type and API version used for the optional management lock. Defaults to `"Microsoft.Authorization/locks@2020-05-01"`.
+- `authorization_role_assignments` - (Optional) The resource type and API version used for role assignments on the access connector. Defaults to `"Microsoft.Authorization/roleAssignments@2022-04-01"`.
+
+Type:
+
+```hcl
+object({
+    databricks_access_connectors   = optional(string, "Microsoft.Databricks/accessConnectors@2026-01-01")
+    authorization_locks            = optional(string, "Microsoft.Authorization/locks@2020-05-01")
+    authorization_role_assignments = optional(string, "Microsoft.Authorization/roleAssignments@2022-04-01")
+  })
+```
+
+Default: `{}`
+
+### <a name="input_retry"></a> [retry](#input\_retry)
+
+Description: Retry configuration applied to every AzAPI resource managed by this module. Defaults to `null` (no custom retry).
+
+- `error_message_regex`  - (Optional) A list of regex patterns matching error messages that trigger a retry.
+- `interval_seconds`     - (Optional) Initial interval between retries, in seconds.
+- `max_interval_seconds` - (Optional) Maximum interval between retries, in seconds.  
+See <https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource#retry>.
+
+Type:
+
+```hcl
+object({
+    error_message_regex  = optional(list(string))
+    interval_seconds     = optional(number)
+    max_interval_seconds = optional(number)
+  })
+```
+
+Default: `null`
 
 ### <a name="input_role_assignments"></a> [role\_assignments](#input\_role\_assignments)
 
@@ -188,25 +247,39 @@ Type: `map(string)`
 
 Default: `null`
 
+### <a name="input_timeouts"></a> [timeouts](#input\_timeouts)
+
+Description: Timeout overrides for AzAPI operations on the access connector, lock, and role assignments. Defaults to `null` (provider defaults). Each value is a Go duration string, for example `"30m"`.
+
+- `create` - (Optional) Timeout for create operations.
+- `read`   - (Optional) Timeout for read operations.
+- `update` - (Optional) Timeout for update operations.
+- `delete` - (Optional) Timeout for delete operations.
+
+Type:
+
+```hcl
+object({
+    create = optional(string)
+    delete = optional(string)
+    read   = optional(string)
+    update = optional(string)
+  })
+```
+
+Default: `null`
+
 ## Outputs
 
 The following outputs are exported:
 
 ### <a name="output_identity"></a> [identity](#output\_identity)
 
-Description: Full managed identity object returned by the AzureRM provider for the access connector, or null when no identity is attached.
-
-### <a name="output_location"></a> [location](#output\_location)
-
-Description: Azure region of the deployed access connector.
+Description: Full managed identity object returned by Azure for the access connector (`type`, `principalId`, `tenantId`, `userAssignedIdentities`), or `null` when no identity is attached.
 
 ### <a name="output_name"></a> [name](#output\_name)
 
 Description: Name of the deployed Azure Databricks access connector.
-
-### <a name="output_resource_group_name"></a> [resource\_group\_name](#output\_resource\_group\_name)
-
-Description: Name of the resource group containing the access connector.
 
 ### <a name="output_resource_id"></a> [resource\_id](#output\_resource\_id)
 
