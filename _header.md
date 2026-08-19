@@ -4,7 +4,7 @@ Azure Verified Module resource module for Azure Databricks Access Connector.
 
 ## Overview
 
-This module deploys a **general-purpose** Azure Databricks Access Connector by using `azurerm_databricks_access_connector`.
+This module deploys a **general-purpose** Azure Databricks Access Connector by using the AzAPI provider against `Microsoft.Databricks/accessConnectors`.
 
 `Microsoft.Databricks/accessConnectors` is intentionally simple: the ARM schema is only `identity`, `location`, `name`, `tags`, and an always-empty `properties = {}` object. The connector is therefore a reusable managed-identity building block for any Unity Catalog or Databricks storage-access scenario. The scenario is determined by **RBAC on the target storage resource**, not by anything configured on the connector itself.
 
@@ -25,6 +25,7 @@ This module keeps only the AVM interfaces that the access connector resource its
 - `lock`
 - `tags`
 - `enable_telemetry`
+- `resource_types`, `retry`, `timeouts`, `ignore_body_changes` (AzAPI control interfaces)
 
 ## Intentionally omitted interfaces
 
@@ -33,10 +34,5 @@ The following template interfaces are intentionally omitted because the access c
 - `diagnostic_settings`
 - `private_endpoints`
 - `customer_managed_key`
-- AzAPI-specific retry / timeout plumbing
 
 For real storage access, grant the connector's managed identity RBAC on the destination storage resource outside this module. The `examples/large-parameter-set` scenario demonstrates that pattern with `Storage Blob Data Contributor` on a storage account.
-
-## AzureRM provider note
-
-This module intentionally uses the native AzureRM resource `azurerm_databricks_access_connector` for the primary resource. Its effective surface area aligns with the latest stable ARM schema for `Microsoft.Databricks/accessConnectors` (`2026-01-01`): there are no scenario-specific properties beyond identity and tags.
