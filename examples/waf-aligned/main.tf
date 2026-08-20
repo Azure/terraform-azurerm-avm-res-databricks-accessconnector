@@ -2,6 +2,10 @@ terraform {
   required_version = ">= 1.9, < 2.0"
 
   required_providers {
+    azapi = {
+      source  = "Azure/azapi"
+      version = "~> 2.12"
+    }
     azurerm = {
       source  = "hashicorp/azurerm"
       version = "~> 4.21"
@@ -13,6 +17,8 @@ terraform {
   }
 }
 
+# The Azure/naming module's provider requirements pull in azurerm even though this
+# example does not declare any azurerm_* resources itself.
 provider "azurerm" {
   features {}
 }
@@ -38,18 +44,23 @@ resource "random_string" "suffix" {
   upper   = false
 }
 
-resource "azurerm_resource_group" "this" {
-  location = local.location
-  name     = module.naming.resource_group.name_unique
+resource "azapi_resource" "this" {
+  type                   = "Microsoft.Resources/resourceGroups@2021-04-01"
+  name                   = module.naming.resource_group.name_unique
+  location               = local.location
+  parent_id              = "/subscriptions/${data.azapi_client_config.current.subscription_id}"
+  response_export_values = []
 }
+
+data "azapi_client_config" "current" {}
 
 module "test" {
   source = "../../"
 
   enable_telemetry = var.enable_telemetry
-  location         = azurerm_resource_group.this.location
+  location         = azapi_resource.this.location
   name             = "dac${random_string.suffix.result}"
-  parent_id        = azurerm_resource_group.this.id
+  parent_id        = azapi_resource.this.id
 
   lock = {
     kind = "CanNotDelete"

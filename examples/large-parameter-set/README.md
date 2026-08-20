@@ -17,6 +17,10 @@ terraform {
   required_version = ">= 1.9, < 2.0"
 
   required_providers {
+    azapi = {
+      source  = "Azure/azapi"
+      version = "~> 2.12"
+    }
     azurerm = {
       source  = "hashicorp/azurerm"
       version = "~> 4.21"
@@ -28,17 +32,13 @@ terraform {
   }
 }
 
+# The Azure/naming module's provider requirements pull in azurerm even though this
+# example does not declare any azurerm_* resources itself.
 provider "azurerm" {
   features {}
-
-  # The subscription used for e2e testing enforces a policy that disables shared-key
-  # (storage account key) authentication on new storage accounts. Instruct the
-  # provider to use Azure AD for storage data-plane operations (e.g. its post-create
-  # blob service availability check) instead of falling back to shared-key auth.
-  storage_use_azuread = true
 }
 
-data "azurerm_client_config" "current" {}
+data "azapi_client_config" "current" {}
 
 # Microsoft.Databricks/accessConnectors is not available in every Azure region, so a
 # single known-supported region is pinned rather than randomly selected (mirrors the
@@ -46,6 +46,14 @@ data "azurerm_client_config" "current" {}
 # https://learn.microsoft.com/azure/templates/microsoft.databricks/accessconnectors
 locals {
   location = "westeurope"
+
+  # Stable, tenant-independent GUIDs for Azure's built-in RBAC roles. These are the
+  # same well-known role-definition IDs the module's own tests assert against; they
+  # never vary between tenants, so no lookup/data source is required to resolve them.
+  role_definition_ids = {
+    reader                        = "acdd72a7-3385-48ef-bd42-f606fba81ae7"
+    storage_blob_data_contributor = "ba92f5b4-2d11-453d-a403-e96b0029c9fe"
+  }
 }
 
 module "naming" {
@@ -69,63 +77,85 @@ resource "random_string" "storage_suffix" {
   upper   = false
 }
 
-resource "azurerm_resource_group" "this" {
-  location = local.location
-  name     = module.naming.resource_group.name_unique
+resource "azapi_resource" "resource_group" {
+  type                   = "Microsoft.Resources/resourceGroups@2021-04-01"
+  name                   = module.naming.resource_group.name_unique
+  location               = local.location
+  parent_id              = "/subscriptions/${data.azapi_client_config.current.subscription_id}"
+  response_export_values = []
 }
 
-resource "azurerm_user_assigned_identity" "this" {
-  location            = azurerm_resource_group.this.location
-  name                = "uami-${random_string.connector_suffix.result}"
-  resource_group_name = azurerm_resource_group.this.name
+resource "azapi_resource" "user_assigned_identity" {
+  type      = "Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31"
+  name      = "uami-${random_string.connector_suffix.result}"
+  location  = azapi_resource.resource_group.location
+  parent_id = azapi_resource.resource_group.id
+  response_export_values = [
+    "properties.principalId",
+  ]
 }
 
-resource "azurerm_role_assignment" "current_user_storage_blob_data_contributor" {
+resource "azapi_resource" "current_user_storage_blob_data_contributor" {
+  type = "Microsoft.Authorization/roleAssignments@2022-04-01"
+  name = random_uuid.current_user_storage_blob_data_contributor.result
   # Scoped to the resource group (rather than the storage account, which does not
   # exist yet) so this role assignment can be created before, and does not depend
   # on, the storage account below. That gives Azure AD's RBAC propagation a head
-  # start before the AzureRM provider polls the storage account's data plane
-  # (blob service) right after creation -- see the storage_use_azuread comment above.
-  principal_id         = data.azurerm_client_config.current.object_id
-  role_definition_name = "Storage Blob Data Contributor"
-  scope                = azurerm_resource_group.this.id
+  # start before AzAPI's post-create checks against the storage data plane.
+  parent_id = azapi_resource.resource_group.id
+  body = {
+    properties = {
+      principalId      = data.azapi_client_config.current.object_id
+      roleDefinitionId = "/subscriptions/${data.azapi_client_config.current.subscription_id}/providers/Microsoft.Authorization/roleDefinitions/${local.role_definition_ids.storage_blob_data_contributor}"
+      principalType    = "User"
+    }
+  }
+  response_export_values = []
 }
 
-resource "azurerm_storage_account" "this" {
-  account_replication_type = "ZRS"
-  account_tier             = "Standard"
-  location                 = azurerm_resource_group.this.location
-  name                     = "st${random_string.storage_suffix.result}"
-  resource_group_name      = azurerm_resource_group.this.name
+resource "random_uuid" "current_user_storage_blob_data_contributor" {}
 
-  # The subscription used for e2e testing enforces a policy that forces these two
-  # settings to false on all new storage accounts, regardless of what is requested.
-  # Setting them explicitly (instead of relying on the provider defaults of true)
-  # keeps Terraform's desired state aligned with the policy-enforced actual state,
-  # so a post-apply plan reports no drift.
-  allow_nested_items_to_be_public = false
-  shared_access_key_enabled       = false
-
-  lifecycle {
-    # public_network_access_enabled must stay "true" (the provider default) at
-    # create time so the AzureRM provider's post-create data-plane availability
-    # check can reach the storage account over its public endpoint. The same
-    # subscription policy that forces the two settings above then asynchronously
-    # flips this one to "false" after creation, which would otherwise show up as
-    # permanent drift on every subsequent plan.
-    ignore_changes = [public_network_access_enabled]
+resource "azapi_resource" "storage_account" {
+  type      = "Microsoft.Storage/storageAccounts@2023-01-01"
+  name      = "st${random_string.storage_suffix.result}"
+  location  = azapi_resource.resource_group.location
+  parent_id = azapi_resource.resource_group.id
+  body = {
+    sku = {
+      name = "Standard_ZRS"
+    }
+    kind = "StorageV2"
+    properties = {
+      # The subscription used for e2e testing enforces a policy that forces these
+      # two settings to false on all new storage accounts, regardless of what is
+      # requested. Setting them explicitly (instead of relying on provider
+      # defaults) keeps Terraform's desired state aligned with the
+      # policy-enforced actual state, so a post-apply plan reports no drift.
+      allowBlobPublicAccess = false
+      allowSharedKeyAccess  = false
+      # Stays "true" at create time so AzAPI's post-create data-plane checks can
+      # reach the storage account over its public endpoint. The same subscription
+      # policy that forces the two settings above then asynchronously flips this
+      # one to "false" after creation, which would otherwise show up as permanent
+      # drift on every subsequent plan.
+      publicNetworkAccess = "Enabled"
+    }
   }
+  ignore_body_changes = [
+    "properties.publicNetworkAccess",
+  ]
+  response_export_values = []
 
-  depends_on = [azurerm_role_assignment.current_user_storage_blob_data_contributor]
+  depends_on = [azapi_resource.current_user_storage_blob_data_contributor]
 }
 
 module "test" {
   source = "../../"
 
   enable_telemetry = var.enable_telemetry
-  location         = azurerm_resource_group.this.location
+  location         = azapi_resource.resource_group.location
   name             = "dac${random_string.connector_suffix.result}"
-  parent_id        = azurerm_resource_group.this.id
+  parent_id        = azapi_resource.resource_group.id
 
   lock = {
     kind = "CanNotDelete"
@@ -134,13 +164,13 @@ module "test" {
 
   managed_identities = {
     system_assigned            = true
-    user_assigned_resource_ids = [azurerm_user_assigned_identity.this.id]
+    user_assigned_resource_ids = [azapi_resource.user_assigned_identity.id]
   }
 
   role_assignments = {
     current_user_reader = {
       role_definition_id_or_name = "Reader"
-      principal_id               = data.azurerm_client_config.current.object_id
+      principal_id               = data.azapi_client_config.current.object_id
     }
   }
 
@@ -151,20 +181,30 @@ module "test" {
   }
 }
 
-resource "azurerm_role_assignment" "storage_blob_data_contributor" {
-  principal_id         = module.test.system_assigned_mi_principal_id
-  role_definition_name = "Storage Blob Data Contributor"
-  scope                = azurerm_storage_account.this.id
+resource "azapi_resource" "storage_blob_data_contributor" {
+  type      = "Microsoft.Authorization/roleAssignments@2022-04-01"
+  name      = random_uuid.storage_blob_data_contributor.result
+  parent_id = azapi_resource.storage_account.id
+  body = {
+    properties = {
+      principalId      = module.test.system_assigned_mi_principal_id
+      roleDefinitionId = "/subscriptions/${data.azapi_client_config.current.subscription_id}/providers/Microsoft.Authorization/roleDefinitions/${local.role_definition_ids.storage_blob_data_contributor}"
+      principalType    = "ServicePrincipal"
+    }
+  }
+  response_export_values = []
 
   depends_on = [module.test]
 }
+
+resource "random_uuid" "storage_blob_data_contributor" {}
 
 output "access_connector_id" {
   value = module.test.resource_id
 }
 
 output "storage_account_id" {
-  value = azurerm_storage_account.this.id
+  value = azapi_resource.storage_account.id
 }
 ```
 
@@ -175,6 +215,8 @@ The following requirements are needed by this module:
 
 - <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) (>= 1.9, < 2.0)
 
+- <a name="requirement_azapi"></a> [azapi](#requirement\_azapi) (~> 2.12)
+
 - <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) (~> 4.21)
 
 - <a name="requirement_random"></a> [random](#requirement\_random) (~> 3.5)
@@ -183,14 +225,16 @@ The following requirements are needed by this module:
 
 The following resources are used by this module:
 
-- [azurerm_resource_group.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) (resource)
-- [azurerm_role_assignment.current_user_storage_blob_data_contributor](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/role_assignment) (resource)
-- [azurerm_role_assignment.storage_blob_data_contributor](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/role_assignment) (resource)
-- [azurerm_storage_account.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/storage_account) (resource)
-- [azurerm_user_assigned_identity.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/user_assigned_identity) (resource)
+- [azapi_resource.current_user_storage_blob_data_contributor](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource) (resource)
+- [azapi_resource.resource_group](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource) (resource)
+- [azapi_resource.storage_account](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource) (resource)
+- [azapi_resource.storage_blob_data_contributor](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource) (resource)
+- [azapi_resource.user_assigned_identity](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource) (resource)
 - [random_string.connector_suffix](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/string) (resource)
 - [random_string.storage_suffix](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/string) (resource)
-- [azurerm_client_config.current](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/data-sources/client_config) (data source)
+- [random_uuid.current_user_storage_blob_data_contributor](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/uuid) (resource)
+- [random_uuid.storage_blob_data_contributor](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/uuid) (resource)
+- [azapi_client_config.current](https://registry.terraform.io/providers/Azure/azapi/latest/docs/data-sources/client_config) (data source)
 
 <!-- markdownlint-disable MD013 -->
 ## Required Inputs

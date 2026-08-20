@@ -9,6 +9,10 @@ terraform {
   required_version = ">= 1.9, < 2.0"
 
   required_providers {
+    azapi = {
+      source  = "Azure/azapi"
+      version = "~> 2.12"
+    }
     azurerm = {
       source  = "hashicorp/azurerm"
       version = "~> 4.21"
@@ -20,6 +24,8 @@ terraform {
   }
 }
 
+# The Azure/naming module's provider requirements pull in azurerm even though this
+# example does not declare any azurerm_* resources itself.
 provider "azurerm" {
   features {}
 }
@@ -45,18 +51,23 @@ resource "random_string" "suffix" {
   upper   = false
 }
 
-resource "azurerm_resource_group" "this" {
-  location = local.location
-  name     = module.naming.resource_group.name_unique
+resource "azapi_resource" "this" {
+  type                   = "Microsoft.Resources/resourceGroups@2021-04-01"
+  name                   = module.naming.resource_group.name_unique
+  location               = local.location
+  parent_id              = "/subscriptions/${data.azapi_client_config.current.subscription_id}"
+  response_export_values = []
 }
+
+data "azapi_client_config" "current" {}
 
 module "test" {
   source = "../../"
 
   enable_telemetry = var.enable_telemetry
-  location         = azurerm_resource_group.this.location
+  location         = azapi_resource.this.location
   name             = "dac${random_string.suffix.result}"
-  parent_id        = azurerm_resource_group.this.id
+  parent_id        = azapi_resource.this.id
 }
 
 output "access_connector_id" {
@@ -71,6 +82,8 @@ The following requirements are needed by this module:
 
 - <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) (>= 1.9, < 2.0)
 
+- <a name="requirement_azapi"></a> [azapi](#requirement\_azapi) (~> 2.12)
+
 - <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) (~> 4.21)
 
 - <a name="requirement_random"></a> [random](#requirement\_random) (~> 3.5)
@@ -79,8 +92,9 @@ The following requirements are needed by this module:
 
 The following resources are used by this module:
 
-- [azurerm_resource_group.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) (resource)
+- [azapi_resource.this](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource) (resource)
 - [random_string.suffix](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/string) (resource)
+- [azapi_client_config.current](https://registry.terraform.io/providers/Azure/azapi/latest/docs/data-sources/client_config) (data source)
 
 <!-- markdownlint-disable MD013 -->
 ## Required Inputs
