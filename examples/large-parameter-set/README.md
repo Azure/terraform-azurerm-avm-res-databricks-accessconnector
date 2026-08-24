@@ -21,21 +21,11 @@ terraform {
       source  = "Azure/azapi"
       version = "~> 2.12"
     }
-    azurerm = {
-      source  = "hashicorp/azurerm"
-      version = "~> 4.21"
-    }
     random = {
       source  = "hashicorp/random"
       version = "~> 3.5"
     }
   }
-}
-
-# The Azure/naming module's provider requirements pull in azurerm even though this
-# example does not declare any azurerm_* resources itself.
-provider "azurerm" {
-  features {}
 }
 
 data "azapi_client_config" "current" {}
@@ -105,9 +95,11 @@ resource "azapi_resource" "current_user_storage_blob_data_contributor" {
   parent_id = azapi_resource.resource_group.id
   body = {
     properties = {
-      principalId      = data.azapi_client_config.current.object_id
+      principalId = data.azapi_client_config.current.object_id
+      # principalType is intentionally omitted: the caller running this example may be
+      # an interactive user (local testing) or a service principal (CI via OIDC), and
+      # Azure infers the correct type from the principal ID when it is not supplied.
       roleDefinitionId = "/subscriptions/${data.azapi_client_config.current.subscription_id}/providers/Microsoft.Authorization/roleDefinitions/${local.role_definition_ids.storage_blob_data_contributor}"
-      principalType    = "User"
     }
   }
   response_export_values = []
@@ -216,8 +208,6 @@ The following requirements are needed by this module:
 - <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) (>= 1.9, < 2.0)
 
 - <a name="requirement_azapi"></a> [azapi](#requirement\_azapi) (~> 2.12)
-
-- <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) (~> 4.21)
 
 - <a name="requirement_random"></a> [random](#requirement\_random) (~> 3.5)
 

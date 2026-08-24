@@ -22,11 +22,10 @@ resource "azapi_resource" "this" {
     }
     properties = {}
   }
-  create_headers        = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
-  delete_headers        = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
-  ignore_body_changes   = length(var.ignore_body_changes.databricks_access_connectors) > 0 ? var.ignore_body_changes.databricks_access_connectors : null
-  read_headers          = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
-  replace_triggers_refs = []
+  create_headers      = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  delete_headers      = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  ignore_body_changes = length(var.ignore_body_changes.databricks_access_connectors) > 0 ? var.ignore_body_changes.databricks_access_connectors : null
+  read_headers        = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
   response_export_values = [
     "identity",
   ]
@@ -56,7 +55,6 @@ resource "azapi_resource" "role_assignments" {
   delete_headers         = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
   ignore_body_changes    = length(var.ignore_body_changes.authorization_role_assignments) > 0 ? var.ignore_body_changes.authorization_role_assignments : null
   read_headers           = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
-  replace_triggers_refs  = []
   response_export_values = []
   retry                  = var.retry
   update_headers         = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
@@ -83,7 +81,6 @@ resource "azapi_resource" "lock" {
   delete_headers         = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
   ignore_body_changes    = length(var.ignore_body_changes.authorization_locks) > 0 ? var.ignore_body_changes.authorization_locks : null
   read_headers           = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
-  replace_triggers_refs  = []
   response_export_values = []
   retry                  = var.retry
   update_headers         = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null

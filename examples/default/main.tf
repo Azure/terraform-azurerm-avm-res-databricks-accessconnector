@@ -6,21 +6,11 @@ terraform {
       source  = "Azure/azapi"
       version = "~> 2.12"
     }
-    azurerm = {
-      source  = "hashicorp/azurerm"
-      version = "~> 4.21"
-    }
     random = {
       source  = "hashicorp/random"
       version = "~> 3.5"
     }
   }
-}
-
-# The Azure/naming module's provider requirements pull in azurerm even though this
-# example does not declare any azurerm_* resources itself.
-provider "azurerm" {
-  features {}
 }
 
 # Microsoft.Databricks/accessConnectors is not available in every Azure region, so a
