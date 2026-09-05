@@ -53,31 +53,31 @@ resource "random_string" "storage_suffix" {
 }
 
 resource "azapi_resource" "resource_group" {
-  type                   = "Microsoft.Resources/resourceGroups@2021-04-01"
-  name                   = module.naming.resource_group.name_unique
   location               = local.location
+  name                   = module.naming.resource_group.name_unique
   parent_id              = "/subscriptions/${data.azapi_client_config.current.subscription_id}"
+  type                   = "Microsoft.Resources/resourceGroups@2021-04-01"
   response_export_values = []
 }
 
 resource "azapi_resource" "user_assigned_identity" {
-  type      = "Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31"
-  name      = "uami-${random_string.connector_suffix.result}"
   location  = azapi_resource.resource_group.location
+  name      = "uami-${random_string.connector_suffix.result}"
   parent_id = azapi_resource.resource_group.id
+  type      = "Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31"
   response_export_values = [
     "properties.principalId",
   ]
 }
 
 resource "azapi_resource" "current_user_storage_blob_data_contributor" {
-  type = "Microsoft.Authorization/roleAssignments@2022-04-01"
   name = random_uuid.current_user_storage_blob_data_contributor.result
   # Scoped to the resource group (rather than the storage account, which does not
   # exist yet) so this role assignment can be created before, and does not depend
   # on, the storage account below. That gives Azure AD's RBAC propagation a head
   # start before AzAPI's post-create checks against the storage data plane.
   parent_id = azapi_resource.resource_group.id
+  type      = "Microsoft.Authorization/roleAssignments@2022-04-01"
   body = {
     properties = {
       principalId = data.azapi_client_config.current.object_id
@@ -93,10 +93,10 @@ resource "azapi_resource" "current_user_storage_blob_data_contributor" {
 resource "random_uuid" "current_user_storage_blob_data_contributor" {}
 
 resource "azapi_resource" "storage_account" {
-  type      = "Microsoft.Storage/storageAccounts@2023-01-01"
-  name      = "st${random_string.storage_suffix.result}"
   location  = azapi_resource.resource_group.location
+  name      = "st${random_string.storage_suffix.result}"
   parent_id = azapi_resource.resource_group.id
+  type      = "Microsoft.Storage/storageAccounts@2023-01-01"
   body = {
     sku = {
       name = "Standard_ZRS"
@@ -129,28 +129,24 @@ resource "azapi_resource" "storage_account" {
 module "test" {
   source = "../../"
 
-  enable_telemetry = var.enable_telemetry
   location         = azapi_resource.resource_group.location
   name             = "dac${random_string.connector_suffix.result}"
   parent_id        = azapi_resource.resource_group.id
-
+  enable_telemetry = var.enable_telemetry
   lock = {
     kind = "CanNotDelete"
     name = "myCustomLockName"
   }
-
   managed_identities = {
     system_assigned            = true
     user_assigned_resource_ids = [azapi_resource.user_assigned_identity.id]
   }
-
   role_assignments = {
     current_user_reader = {
       role_definition_id_or_name = "Reader"
       principal_id               = data.azapi_client_config.current.object_id
     }
   }
-
   tags = {
     Environment    = "Non-Prod"
     Role           = "StorageCredential"
@@ -159,9 +155,9 @@ module "test" {
 }
 
 resource "azapi_resource" "storage_blob_data_contributor" {
-  type      = "Microsoft.Authorization/roleAssignments@2022-04-01"
   name      = random_uuid.storage_blob_data_contributor.result
   parent_id = azapi_resource.storage_account.id
+  type      = "Microsoft.Authorization/roleAssignments@2022-04-01"
   body = {
     properties = {
       principalId      = module.test.system_assigned_mi_principal_id

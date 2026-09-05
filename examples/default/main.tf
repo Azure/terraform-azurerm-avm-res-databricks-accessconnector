@@ -35,10 +35,10 @@ resource "random_string" "suffix" {
 }
 
 resource "azapi_resource" "this" {
-  type                   = "Microsoft.Resources/resourceGroups@2021-04-01"
-  name                   = module.naming.resource_group.name_unique
   location               = local.location
+  name                   = module.naming.resource_group.name_unique
   parent_id              = "/subscriptions/${data.azapi_client_config.current.subscription_id}"
+  type                   = "Microsoft.Resources/resourceGroups@2021-04-01"
   response_export_values = []
 }
 
@@ -47,10 +47,10 @@ data "azapi_client_config" "current" {}
 module "test" {
   source = "../../"
 
-  enable_telemetry = var.enable_telemetry
   location         = azapi_resource.this.location
   name             = "dac${random_string.suffix.result}"
   parent_id        = azapi_resource.this.id
+  enable_telemetry = var.enable_telemetry
 }
 
 output "access_connector_id" {
