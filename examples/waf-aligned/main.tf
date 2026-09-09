@@ -51,6 +51,15 @@ module "test" {
   name             = "dac${random_string.suffix.result}"
   parent_id        = azapi_resource.this.id
   enable_telemetry = var.enable_telemetry
+  lock = {
+    kind = "CanNotDelete"
+    name = "myCustomLockName"
+  }
+  tags = {
+    Environment    = "Non-Prod"
+    Role           = "DeploymentValidation"
+    "hidden-title" = "Azure Databricks Access Connector"
+  }
 }
 
 output "access_connector_id" {
