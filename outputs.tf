@@ -1,6 +1,19 @@
-output "private_endpoints" {
-  description = <<DESCRIPTION
-  A map of the private endpoints created.
-  DESCRIPTION
-  value       = var.private_endpoints_manage_dns_zone_group ? azurerm_private_endpoint.this_managed_dns_zone_groups : azurerm_private_endpoint.this_unmanaged_dns_zone_groups
+output "identity" {
+  description = "Full managed identity object returned by Azure for the access connector (`type`, `principalId`, `tenantId`, `userAssignedIdentities`), or `null` when no identity is attached."
+  value       = try(azapi_resource.this.output.identity, null)
+}
+
+output "name" {
+  description = "Name of the deployed Azure Databricks access connector."
+  value       = azapi_resource.this.name
+}
+
+output "resource_id" {
+  description = "Resource ID of the deployed Azure Databricks access connector."
+  value       = azapi_resource.this.id
+}
+
+output "system_assigned_mi_principal_id" {
+  description = "Principal ID of the system-assigned managed identity, if enabled."
+  value       = try(azapi_resource.this.output.identity.principalId, null)
 }
