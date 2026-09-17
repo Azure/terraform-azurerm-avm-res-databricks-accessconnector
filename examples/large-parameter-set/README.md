@@ -147,7 +147,7 @@ module "test" {
   location         = azapi_resource.resource_group.location
   name             = "dac${random_string.connector_suffix.result}"
   parent_id        = azapi_resource.resource_group.id
-  enable_telemetry = var.enable_telemetry
+  enable_telemetry = false
   lock = {
     kind = "CanNotDelete"
     name = "myCustomLockName"
