@@ -57,7 +57,7 @@ module "test" {
   location         = azapi_resource.this.location
   name             = "dac${random_string.suffix.result}"
   parent_id        = azapi_resource.this.id
-  enable_telemetry = false
+  enable_telemetry = var.enable_telemetry
 }
 
 output "access_connector_id" {
@@ -99,7 +99,7 @@ Description: Whether to enable AVM telemetry in the example deployment.
 
 Type: `bool`
 
-Default: `true`
+Default: `false`
 
 ## Outputs
 

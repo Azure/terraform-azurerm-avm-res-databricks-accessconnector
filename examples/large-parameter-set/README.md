@@ -147,7 +147,7 @@ module "test" {
   location         = azapi_resource.resource_group.location
   name             = "dac${random_string.connector_suffix.result}"
   parent_id        = azapi_resource.resource_group.id
-  enable_telemetry = false
+  enable_telemetry = var.enable_telemetry
   lock = {
     kind = "CanNotDelete"
     name = "myCustomLockName"
@@ -237,7 +237,7 @@ Description: Whether to enable AVM telemetry in the example deployment.
 
 Type: `bool`
 
-Default: `true`
+Default: `false`
 
 ## Outputs
 
