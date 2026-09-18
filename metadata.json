@@ -1,0 +1,11 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Azure/azure-verified-modules-tools/main/src/Avm.Authoring/Resources/Schemas/v1/avm-module-metadata.schema.json",
+  "moduleDisplayName": "Azure Databricks Access Connector",
+  "moduleDescription": "AVM Resource Module for Azure Databricks Access Connector",
+  "canonicalType": "Microsoft.Databricks/accessConnectors",
+  "owners": [
+    "bramcal",
+    "benvbr"
+  ],
+  "telemetryIdPrefix": "46d3xtrf.res.15975c8"
+}
