@@ -1,5 +1,5 @@
 variable "enable_telemetry" {
   type        = bool
-  default     = false
+  default     = true
   description = "Whether to enable AVM telemetry in the example deployment."
 }
