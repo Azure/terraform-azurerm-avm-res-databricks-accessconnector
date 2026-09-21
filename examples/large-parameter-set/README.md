@@ -237,7 +237,7 @@ Description: Whether to enable AVM telemetry in the example deployment.
 
 Type: `bool`
 
-Default: `false`
+Default: `true`
 
 ## Outputs
 
