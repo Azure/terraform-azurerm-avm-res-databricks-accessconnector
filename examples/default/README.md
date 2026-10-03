@@ -25,7 +25,7 @@ terraform {
 # approach used by Azure/terraform-azure-avm-res-fabric-capacity for the same reason).
 # https://learn.microsoft.com/azure/templates/microsoft.databricks/accessconnectors
 locals {
-  location = "westeurope"
+  location = "swedencentral"
 }
 
 module "naming" {

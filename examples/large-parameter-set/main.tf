@@ -20,7 +20,7 @@ data "azapi_client_config" "current" {}
 # approach used by Azure/terraform-azure-avm-res-fabric-capacity for the same reason).
 # https://learn.microsoft.com/azure/templates/microsoft.databricks/accessconnectors
 locals {
-  location = "westeurope"
+  location = "swedencentral"
 
   # Stable, tenant-independent GUIDs for Azure's built-in RBAC roles. These are the
   # same well-known role-definition IDs the module's own tests assert against; they
