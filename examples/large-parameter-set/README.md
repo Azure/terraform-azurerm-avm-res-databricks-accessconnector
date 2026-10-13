@@ -48,7 +48,7 @@ locals {
 
 module "naming" {
   source  = "Azure/naming/azurerm"
-  version = "0.4.3"
+  version = "0.4.4"
 }
 
 resource "random_string" "connector_suffix" {
@@ -259,7 +259,7 @@ The following Modules are called:
 
 Source: Azure/naming/azurerm
 
-Version: 0.4.3
+Version: 0.4.4
 
 ### <a name="module_test"></a> [test](#module\_test)
 
