@@ -18,13 +18,12 @@ mock_provider "azapi" {
 
   mock_data "azapi_client_config" {
     defaults = {
-      subscription_id = "00000000-0000-0000-0000-000000000000"
-      tenant_id       = "00000000-0000-0000-0000-000000000000"
+      subscription_id          = "00000000-0000-0000-0000-000000000000"
+      tenant_id                = "00000000-0000-0000-0000-000000000000"
+      subscription_resource_id = "/subscriptions/00000000-0000-0000-0000-000000000000"
     }
   }
 }
-
-mock_provider "modtm" {}
 
 # avm-utl-interfaces generates a role-assignment name via random_uuid when the caller
 # doesn't supply one. The role-assignment resource name must be a real UUID, so an
@@ -75,6 +74,10 @@ run "defaults_plan" {
     condition     = length(azapi_resource.lock) == 0
     error_message = "No lock should be created by default."
   }
+  providers = {
+    azapi  = azapi
+    random = random
+  }
 }
 
 run "role_assignments_plan" {
@@ -120,6 +123,10 @@ run "role_assignments_plan" {
     condition     = length(azapi_resource.lock) == 1
     error_message = "A requested lock must be created."
   }
+  providers = {
+    azapi  = azapi
+    random = random
+  }
 }
 
 run "invalid_name_fails" {
@@ -130,6 +137,10 @@ run "invalid_name_fails" {
   }
 
   expect_failures = [var.name]
+  providers = {
+    azapi  = azapi
+    random = random
+  }
 }
 
 run "invalid_lock_kind_fails" {
@@ -142,6 +153,10 @@ run "invalid_lock_kind_fails" {
   }
 
   expect_failures = [var.lock]
+  providers = {
+    azapi  = azapi
+    random = random
+  }
 }
 
 run "invalid_parent_id_fails" {
@@ -152,4 +167,8 @@ run "invalid_parent_id_fails" {
   }
 
   expect_failures = [var.parent_id]
+  providers = {
+    azapi  = azapi
+    random = random
+  }
 }
