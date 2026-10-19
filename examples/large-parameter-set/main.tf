@@ -32,8 +32,8 @@ locals {
 }
 
 module "naming" {
-  source  = "Azure/naming/azurerm"
-  version = "0.4.4"
+  source  = "Azure/avm-utl-naming/azure"
+  version = "0.2.0"
 }
 
 resource "random_string" "connector_suffix" {
@@ -128,6 +128,9 @@ resource "azapi_resource" "storage_account" {
 
 module "test" {
   source = "../../"
+  providers = {
+    azapi = azapi
+  }
 
   location         = azapi_resource.resource_group.location
   name             = "dac${random_string.connector_suffix.result}"
