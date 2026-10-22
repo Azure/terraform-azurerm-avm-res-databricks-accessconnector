@@ -143,9 +143,6 @@ resource "azapi_resource" "storage_account" {
 
 module "test" {
   source = "../../"
-  providers = {
-    azapi = azapi
-  }
 
   location         = azapi_resource.resource_group.location
   name             = "dac${random_string.connector_suffix.result}"

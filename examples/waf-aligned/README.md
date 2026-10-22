@@ -59,9 +59,6 @@ data "azapi_client_config" "current" {}
 
 module "test" {
   source = "../../"
-  providers = {
-    azapi = azapi
-  }
 
   location         = azapi_resource.this.location
   name             = "dac${random_string.suffix.result}"
